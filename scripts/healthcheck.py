@@ -17,10 +17,15 @@ ERROR_LINE = re.compile(r"\b(ERROR|CRITICAL|Traceback)\b")
 
 
 def fetch(url: str, timeout: float = 5.0) -> tuple[int, str]:
-    """请求并返回 (状态码, 响应体)。"""
+    """请求并返回 (状态码, 响应体)。
+
+    显式禁用代理：公司内网 / CI 环境常带有 http_proxy 变量，
+    会让 localhost 请求被代理拦截返回 502，巡检脚本必须绕过。
+    """
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     req = urllib.request.Request(url, headers={"User-Agent": "healthcheck/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with opener.open(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", "replace")
