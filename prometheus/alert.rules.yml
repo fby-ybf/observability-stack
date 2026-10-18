@@ -1,0 +1,36 @@
+groups:
+  - name: demo-service-alerts
+    rules:
+      - alert: DemoServiceDown
+        expr: up{job="demo-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "demo-service 实例失联"
+          description: "Prometheus 已经 1 分钟抓不到 demo:8000 的指标，请检查容器状态。"
+
+      - alert: DemoErrorRateHigh
+        expr: |
+          sum(rate(demo_requests_total{status="500"}[5m]))
+          / clamp_min(sum(rate(demo_requests_total[5m])), 1)
+          > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx 错误率超过 10%"
+          description: "近 5 分钟 demo-service 的 5xx 占比 {{ $value | humanizePercentage }}。"
+
+      - alert: DemoLatencyP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(demo_request_latency_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 延迟超过 1s"
+          description: "近 5 分钟 demo-service P95 延迟为 {{ $value }}s。"
